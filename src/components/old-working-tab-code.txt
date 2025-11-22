@@ -1,0 +1,417 @@
+import React, { useState, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
+
+
+export default function Home() {
+  const [step, setStep] = useState(1);
+  const [loading, setLoading] = useState(false);
+  const [apiResult, setApiResult] = useState(null);
+
+  const [form, setForm] = useState({
+    // Self
+    age: "",
+    gender: "",
+    city_type: "",
+    retirement_age: "60",
+
+    // Family
+    has_spouse: false,
+    spouse_age: "",
+    spouse_income: "",
+    num_children: 0,
+    children_ages: [],
+
+    // Parents
+    has_parents: false,
+    parents: [], // array of ages
+
+    // Financials
+    monthly_income: "",
+    household_expenses: "",
+    liquid_savings: "",
+    market_investments: "",
+    loans: [], // {type, outstanding, emi}
+
+    // Goals
+    goals: [], // {name, today_cost, years_left}
+
+    // Existing covers
+    existing_term_cover: "",
+    employer_life_cover: "",
+    existing_health_cover_family: "",
+    existing_health_cover_parents: "",
+
+    // Medical
+    existing_diseases: [], // multi select values
+  });
+
+  // derived values
+  const family_size = useMemo(() => {
+    let size = 1; // self
+    if (form.has_spouse) size += 1;
+    const nChildren = Number(form.num_children) || 0;
+    size += nChildren;
+    return size;
+  }, [form.has_spouse, form.num_children]);
+
+  // convenience setters
+  const update = (path, value) => {
+    setForm(prev => ({ ...prev, [path]: value }));
+  };
+
+  // loans handlers
+  const addLoan = () => setForm(prev => ({ ...prev, loans: [...prev.loans, { type: "home", outstanding: "", emi: "" }] }));
+  const updateLoan = (i, key, value) => {
+    const loans = [...form.loans];
+    loans[i] = { ...loans[i], [key]: value };
+    update("loans", loans);
+  };
+  const removeLoan = (i) => {
+    const loans = [...form.loans]; loans.splice(i, 1); update("loans", loans);
+  };
+
+  // goals handlers
+  const addGoal = () => setForm(prev => ({ ...prev, goals: [...prev.goals, { name: "", today_cost: "", years_left: "" }] }));
+  const updateGoal = (i, key, value) => {
+    const goals = [...form.goals]; goals[i] = { ...goals[i], [key]: value }; update("goals", goals);
+  };
+  const removeGoal = (i) => { const goals = [...form.goals]; goals.splice(i, 1); update("goals", goals); };
+
+  // parents handlers
+  const addParent = () => setForm(prev => ({ ...prev, parents: [...prev.parents, ""] }));
+  const updateParent = (i, value) => {
+    const p = [...form.parents]; p[i] = value; update("parents", p);
+  };
+  const removeParent = (i) => { const p = [...form.parents]; p.splice(i, 1); update("parents", p); };
+
+  // disease toggle
+  const toggleDisease = (code) => {
+    const set = new Set(form.existing_diseases);
+    if (set.has(code)) set.delete(code); else set.add(code);
+    update("existing_diseases", Array.from(set));
+  };
+
+  // helper: sum loans outstanding
+  const loansOutstandingSum = useMemo(() => {
+    return form.loans.reduce((s, l) => s + (Number(l.outstanding) || 0), 0);
+  }, [form.loans]);
+
+  // helper: total goals (today cost sum)
+  const goalsTotal = useMemo(() => {
+    return form.goals.reduce((s, g) => s + (Number(g.today_cost) || 0), 0);
+  }, [form.goals]);
+
+  // prepare payload matching python's expected keys
+  const buildPayload = () => {
+    const parentAge = form.parents.length ? Math.max(...form.parents.map(a => Number(a) || 0)) : null;
+
+    return {
+      age: Number(form.age) || 0,
+      gender: form.gender,
+      city_type: form.city_type,
+      retirement_age: Number(form.retirement_age) || 60,
+
+      has_spouse: !!form.has_spouse,
+      spouse_age: Number(form.spouse_age) || 0,
+      spouse_income: Number(form.spouse_income) || 0,
+
+      num_children: Number(form.num_children) || 0,
+      children_ages: form.children_ages.map(a => Number(a) || 0),
+
+      has_parents: !!form.has_parents,
+      parent_age: parentAge || 0,
+      parents: form.parents.map(a => Number(a) || 0),
+
+      monthly_income: Number(form.monthly_income) || 0,
+      household_expenses: Number(form.household_expenses) || 0,
+      liquid_savings: Number(form.liquid_savings) || 0,
+      market_investments: Number(form.market_investments) || 0,
+
+      loans_outstanding: loansOutstandingSum,
+      loans: form.loans.map(l => ({ type: l.type, outstanding: Number(l.outstanding) || 0, emi: Number(l.emi) || 0 })),
+
+      goals: form.goals.map(g => ({ name: g.name, today_cost: Number(g.today_cost) || 0, years_left: Number(g.years_left) || 0 })),
+      future_goals: goalsTotal,
+
+      existing_term_cover: Number(form.existing_term_cover) || 0,
+      employer_life_cover: Number(form.employer_life_cover) || 0,
+      existing_health_cover_family: Number(form.existing_health_cover_family) || 0,
+      existing_health_cover_parents: Number(form.existing_health_cover_parents) || 0,
+
+      existing_diseases: form.existing_diseases,
+      family_size,
+    };
+  };
+
+  const handleSubmit = async () => {
+    const payload = buildPayload();
+    setLoading(true);
+    setApiResult(null);
+    try {
+      const res = await fetch("http://localhost:5000/calculate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+      const json = await res.json();
+      setApiResult(json);
+      setStep(5);
+    } catch (err) {
+      alert("API error: " + err.message);
+    } finally { setLoading(false); }
+  };
+
+  // small validation before moving forward
+  const canGoNextFromSelf = () => form.age && form.city_type && form.retirement_age;
+  const canGoNextFromFamily = () => true;
+  const canGoNextFromFinance = () => form.monthly_income && form.household_expenses;
+
+  return (
+    <div className="min-h-screen bg-gray-50 p-6">
+      <div className="max-w-3xl mx-auto">
+        <div className="bg-white shadow rounded-lg p-6">
+          <div className="flex items-center justify-between">
+            <h1 className="text-xl font-semibold">Insurance Needs Calculator</h1>
+            <div className="text-sm text-gray-500">Mode: Quick + Full-ready</div>
+          </div>
+
+          {/* stepper */}
+          <div className="mt-4 mb-6">
+            <div className="flex items-center gap-3">
+                {[
+                  { id: 1, label: "Self Details" },
+                  { id: 2, label: "Family Details" },
+                  { id: 3, label: "Financials" },
+                  { id: 4, label: "Existing Covers" },
+                  { id: 5, label: "Recommendation" }
+                ].map(s => (
+                  <div
+                    key={s.id}
+                    className={`flex-1 py-2 text-center rounded ${
+                      s.id === step ? "bg-green-500 text-white" : "bg-gray-100 text-gray-600"
+                    }`}
+                  >
+                    {s.label}
+                  </div>
+                ))}
+              </div>
+          </div>
+
+          {/* steps */}
+          {step === 1 && (
+            <div>
+              <h2 className="text-lg font-medium mb-4">Self Details</h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <input className="p-3 border rounded" placeholder="Age" value={form.age} onChange={e=>update('age', e.target.value)} />
+                <select className="p-3 border rounded" value={form.gender} onChange={e=>update('gender', e.target.value)}>
+                  <option value="">Gender</option>
+                  <option value="male">Male</option>
+                  <option value="female">Female</option>
+                  <option value="other">Other</option>
+                </select>
+                <select className="p-3 border rounded" value={form.city_type} onChange={e=>update('city_type', e.target.value)}>
+                  <option value="">City Type</option>
+                  <option value="metro">Metro</option>
+                  <option value="tier1">Tier 1</option>
+                  <option value="tier2">Tier 2</option>
+                  <option value="tier3">Tier 3</option>
+                </select>
+                <input className="p-3 border rounded" placeholder="Retirement Age" value={form.retirement_age} onChange={e=>update('retirement_age', e.target.value)} />
+              </div>
+
+              <div className="mt-6 flex justify-end gap-3">
+                <button className="px-4 py-2 bg-gray-200 rounded" onClick={()=>{}} disabled>Cancel</button>
+                <button className="px-4 py-2 bg-green-600 text-white rounded" onClick={()=>{ if(canGoNextFromSelf()) setStep(2); else alert('Please fill age, city and retirement age') }}>Next</button>
+              </div>
+            </div>
+          )}
+
+          {step === 2 && (
+            <div>
+              <h2 className="text-lg font-medium mb-4">Family Details</h2>
+              <div className="space-y-4">
+                <label className="flex items-center gap-2">
+                  <input type="checkbox" checked={form.has_spouse} onChange={e=>update('has_spouse', e.target.checked)} /> Has spouse
+                </label>
+                {form.has_spouse && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <input className="p-3 border rounded" placeholder="Spouse Age" value={form.spouse_age} onChange={e=>update('spouse_age', e.target.value)} />
+                    <input className="p-3 border rounded" placeholder="Spouse Monthly Income" value={form.spouse_income} onChange={e=>update('spouse_income', e.target.value)} />
+                  </div>
+                )}
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  <input className="p-3 border rounded" type="number" min={0} placeholder="Number of Children" value={form.num_children} onChange={e=>{ const v = Number(e.target.value)||0; update('num_children', v); const ages = Array.from({length: v}, (_,i)=> form.children_ages[i] || ''); update('children_ages', ages); }} />
+                </div>
+
+                {form.num_children > 0 && (
+                  <div className="space-y-2">
+                    <div className="text-sm text-gray-600">Children ages</div>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+                      {Array.from({length: form.num_children}).map((_,i)=> (
+                        <input key={i} className="p-3 border rounded" placeholder={`Child #${i+1} age`} value={form.children_ages[i]||''} onChange={e=>{ const a=[...form.children_ages]; a[i]=e.target.value; update('children_ages', a); }} />
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                <label className="flex items-center gap-2">
+                  <input type="checkbox" checked={form.has_parents} onChange={e=>update('has_parents', e.target.checked)} /> Parents dependent on you
+                </label>
+                {form.has_parents && (
+                  <div>
+                    <div className="flex gap-2 items-center">
+                      <button className="px-3 py-1 bg-gray-100 rounded" onClick={addParent}>Add Parent</button>
+                      <div className="text-sm text-gray-500">Add parent ages (you can add 1 or 2)</div>
+                    </div>
+                    <div className="mt-2 grid grid-cols-1 md:grid-cols-3 gap-2">
+                      {form.parents.map((p, i) => (
+                        <div key={i} className="flex gap-2">
+                          <input className="p-2 border rounded flex-1" placeholder={`Parent #${i+1} age`} value={p} onChange={e=>updateParent(i, e.target.value)} />
+                          <button className="px-2 bg-red-500 text-white rounded" onClick={()=>removeParent(i)}>Remove</button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                <div className="mt-2">
+                  <div className="text-sm font-medium mb-2">Medical / existing diseases (choose all that apply)</div>
+                  <div className="flex flex-wrap gap-2">
+                    {[
+                      {code:'none', label:'None'},
+                      {code:'diabetes', label:'Diabetes'},
+                      {code:'hypertension', label:'Hypertension'},
+                      {code:'thyroid', label:'Thyroid'},
+                      {code:'heart', label:'Heart disease'},
+                      {code:'cancer', label:'Cancer'}
+                    ].map(d=> (
+                      <button key={d.code} type="button" onClick={()=>toggleDisease(d.code)} className={`${form.existing_diseases.includes(d.code) ? 'bg-green-600 text-white' : 'bg-gray-100 text-gray-700'} px-3 py-1 rounded`}>{d.label}</button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="mt-4 flex justify-between">
+                  <button className="px-4 py-2 bg-gray-200 rounded" onClick={()=>setStep(1)}>Back</button>
+                  <button className="px-4 py-2 bg-green-600 text-white rounded" onClick={()=>setStep(3)}>Next</button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {step === 3 && (
+            <div>
+              <h2 className="text-lg font-medium mb-4">Financial Details</h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <input className="p-3 border rounded" placeholder="Monthly Income" value={form.monthly_income} onChange={e=>update('monthly_income', e.target.value)} />
+                <input className="p-3 border rounded" placeholder="Household Monthly Expenses" value={form.household_expenses} onChange={e=>update('household_expenses', e.target.value)} />
+                <input className="p-3 border rounded" placeholder="Liquid Savings" value={form.liquid_savings} onChange={e=>update('liquid_savings', e.target.value)} />
+                <input className="p-3 border rounded" placeholder="Market Investments" value={form.market_investments} onChange={e=>update('market_investments', e.target.value)} />
+              </div>
+
+              <div className="mt-4">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="text-sm font-medium">Loans</div>
+                  <button className="px-3 py-1 bg-gray-100 rounded" onClick={addLoan}>Add Loan</button>
+                </div>
+                <div className="space-y-3">
+                  {form.loans.map((loan, i)=> (
+                    <div key={i} className="grid grid-cols-1 md:grid-cols-4 gap-2 items-center">
+                      <select className="p-2 border rounded" value={loan.type} onChange={e=>updateLoan(i,'type', e.target.value)}>
+                        <option value="home">Home</option>
+                        <option value="car">Car</option>
+                        <option value="personal">Personal</option>
+                        <option value="other">Other</option>
+                      </select>
+                      <input className="p-2 border rounded" placeholder="Outstanding" value={loan.outstanding} onChange={e=>updateLoan(i,'outstanding', e.target.value)} />
+                      <input className="p-2 border rounded" placeholder="EMI" value={loan.emi} onChange={e=>updateLoan(i,'emi', e.target.value)} />
+                      <button className="px-2 py-1 bg-red-500 text-white rounded" onClick={()=>removeLoan(i)}>Remove</button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="mt-4">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="text-sm font-medium">Future Goals (education, marriage)</div>
+                  <button className="px-3 py-1 bg-gray-100 rounded" onClick={addGoal}>Add Goal</button>
+                </div>
+                <div className="space-y-3">
+                  {form.goals.map((g, i)=> (
+                    <div key={i} className="grid grid-cols-1 md:grid-cols-4 gap-2 items-center">
+                      <input className="p-2 border rounded" placeholder="Goal name" value={g.name} onChange={e=>updateGoal(i,'name', e.target.value)} />
+                      <input className="p-2 border rounded" placeholder="Today cost" value={g.today_cost} onChange={e=>updateGoal(i,'today_cost', e.target.value)} />
+                      <input className="p-2 border rounded" placeholder="Years left" value={g.years_left} onChange={e=>updateGoal(i,'years_left', e.target.value)} />
+                      <button className="px-2 py-1 bg-red-500 text-white rounded" onClick={()=>removeGoal(i)}>Remove</button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="mt-6 flex justify-between">
+                <button className="px-4 py-2 bg-gray-200 rounded" onClick={()=>setStep(2)}>Back</button>
+                <button className="px-4 py-2 bg-green-600 text-white rounded" onClick={()=>{ if(canGoNextFromFinance()) setStep(4); else alert('Please fill income and expenses') }}>Next</button>
+              </div>
+            </div>
+          )}
+
+          {step === 4 && (
+            <div>
+              <h2 className="text-lg font-medium mb-4">Existing Insurance & Review</h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <input className="p-3 border rounded" placeholder="Existing Term Life Cover" value={form.existing_term_cover} onChange={e=>update('existing_term_cover', e.target.value)} />
+                <input className="p-3 border rounded" placeholder="Employer Life Cover" value={form.employer_life_cover} onChange={e=>update('employer_life_cover', e.target.value)} />
+                <input className="p-3 border rounded" placeholder="Existing Health Cover (Family)" value={form.existing_health_cover_family} onChange={e=>update('existing_health_cover_family', e.target.value)} />
+                <input className="p-3 border rounded" placeholder="Existing Health Cover (Parents)" value={form.existing_health_cover_parents} onChange={e=>update('existing_health_cover_parents', e.target.value)} />
+              </div>
+
+              <div className="mt-6">
+                <h3 className="text-md font-medium">Summary</h3>
+                <div className="mt-2 text-sm text-gray-700">
+                  <div>Family size (derived): <strong>{family_size}</strong></div>
+                  <div>Loans outstanding (sum): <strong>₹{loansOutstandingSum.toLocaleString()}</strong></div>
+                  <div>Goals today cost (sum): <strong>₹{goalsTotal.toLocaleString()}</strong></div>
+                </div>
+              </div>
+
+              <div className="mt-6 flex justify-between">
+                <button className="px-4 py-2 bg-gray-200 rounded" onClick={()=>setStep(3)}>Back</button>
+                <button className="px-4 py-2 bg-indigo-600 text-white rounded" onClick={handleSubmit} disabled={loading}>{loading? 'Calculating...':'Calculate & Show Recommendation'}</button>
+              </div>
+            </div>
+          )}
+
+          {step === 5 && apiResult && (
+            <div>
+              <h2 className="text-lg font-medium mb-4">Recommendation</h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="p-4 border rounded">
+                  <h3 className="font-semibold">Term Life</h3>
+                  <div className="mt-2 text-sm text-gray-700">Recommended term cover: <strong>₹{Number(apiResult.term_life_needed || apiResult.recommended_term_cover || 0).toLocaleString()}</strong></div>
+                </div>
+                <div className="p-4 border rounded">
+                  <h3 className="font-semibold">Health Insurance</h3>
+                  <div className="mt-2 text-sm text-gray-700">Family SI: <strong>₹{Number(apiResult.health_insurance?.recommended_family_si || apiResult.health_insurance?.recommended_family_si || apiResult.recommended_family_si || 0).toLocaleString()}</strong></div>
+                  <div className="mt-1 text-sm text-gray-700">Parent SI: <strong>₹{Number(apiResult.health_insurance?.recommended_parent_si || apiResult.health_insurance?.recommended_parent_si || apiResult.recommended_parent_si || 0).toLocaleString()}</strong></div>
+                </div>
+              </div>
+
+              <div className="mt-6">
+                <h3 className="font-medium">Why this recommendation?</h3>
+                <ul className="list-disc ml-5 mt-2 text-sm text-gray-700">
+                  {(apiResult.term_insurance?.explanation || apiResult.term_insurance || apiResult.explanation || []).slice(0,6).map((l,i)=>(<li key={i}>{l}</li>))}
+                </ul>
+              </div>
+
+              <div className="mt-6 flex gap-3">
+                <button className="px-4 py-2 bg-gray-200 rounded" onClick={()=>{ setStep(4); setApiResult(null); }}>Edit Inputs</button>
+                <button className="px-4 py-2 bg-green-600 text-white rounded" onClick={()=>alert('Download / Email feature can be added (backend)')}>Download Report</button>
+              </div>
+            </div>
+          )}
+
+        </div>
+      </div>
+    </div>
+  );
+}
