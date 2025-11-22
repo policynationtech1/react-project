@@ -191,7 +191,7 @@ const updateGoalByName = (name, field, value) => {
 
    
     try {
-      const response = await fetch('http://192.168.1.19:5000/validate-pincode', {
+      const response = await fetch('https://reapply-unnationalised-eve.ngrok-free.dev/validate-pincode', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -207,6 +207,7 @@ const updateGoalByName = (name, field, value) => {
         setCityName(data.city_name); 
       const zone = (data.zone_type);
       update('city_type', zone);
+      setStep(5); 
        
       } else {
         alert('Invalid pincode');
@@ -224,7 +225,7 @@ const updateGoalByName = (name, field, value) => {
     setLoading(true);
     setApiResult(null);
     try {
-      const res = await fetch("http://192.168.1.19:5000/calculate", {
+      const res = await fetch("https://reapply-unnationalised-eve.ngrok-free.dev/calculate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload)
@@ -239,7 +240,7 @@ const updateGoalByName = (name, field, value) => {
     }
   };
  const downloadReport = async () => {
-  const res = await fetch("http://192.168.1.19:5000/download-report", {
+  const res = await fetch("https://reapply-unnationalised-eve.ngrok-free.dev/download-report", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
@@ -323,7 +324,7 @@ const updateGoalByName = (name, field, value) => {
     { id: 3, title: "What is your gender?", validation: () => form.gender },
     { id: 4, title: "What is your city type?", validation: () => form.city_type },
     { id: 5, title: "What is your retirement age?", validation: () => form.retirement_age },
-    { id: 6, title: "Do you have a spouse?", validation: () => true },
+    { id: 6, title: "Are you married?", validation: () => true },
     { id: 7, title: "Spouse Age", validation: () => !form.has_spouse || form.spouse_age },
     { id: 8, title: "Spouse Monthly Income", validation: () => !form.has_spouse || form.spouse_income },
     { id: 9, title: "Number of children?", validation: () => true },
@@ -387,7 +388,7 @@ const updateGoalByName = (name, field, value) => {
 
                
                 <div
-                  onClick={() => update('gender', 'female')}
+                  onClick={() => {update('gender', 'female'); setStep(4);  }}
                   className={`text-center cursor-pointer border rounded-lg p-4 
                     ${form.gender === 'female' ? 'border-blue-500 bg-blue-50' : 'border-gray-300'}
                   `}
@@ -398,7 +399,7 @@ const updateGoalByName = (name, field, value) => {
 
                
                 <div
-                  onClick={() => update('gender', 'male')}
+                  onClick={() => {update('gender', 'male'); setStep(4); }}
                   className={`text-center cursor-pointer border rounded-lg p-4 
                     ${form.gender === 'male' ? 'border-blue-500 bg-blue-50' : 'border-gray-300'}
                   `}
@@ -409,7 +410,7 @@ const updateGoalByName = (name, field, value) => {
 
                 
                 <div
-                  onClick={() => update('gender', 'other')}
+                  onClick={() => {update('gender', 'other'); setStep(4); }}
                   className={`text-center cursor-pointer border rounded-lg p-4 
                     ${form.gender === 'other' ? 'border-blue-500 bg-blue-50' : 'border-gray-300'}
                   `}
@@ -422,10 +423,10 @@ const updateGoalByName = (name, field, value) => {
 
               <div className="mt-6 flex justify-between gap-3">
                 <button className="px-4 py-2 bg-gray-200 rounded" onClick={() => setStep(2)}>Back</button>
-                <button className="px-4 py-2 bg-green-600 text-white rounded"
+                {/* <button className="px-4 py-2 bg-green-600 text-white rounded"
                   onClick={() => form.gender ? setStep(4) : alert('Please select gender')}>
                   Next
-                </button>
+                </button> */}
               </div>
             </div>
 
@@ -441,7 +442,7 @@ const updateGoalByName = (name, field, value) => {
 
                
                 <div
-                  onClick={() => update('city_type', 'Metro')}
+                  onClick={() => {update('city_type', 'Metro'); setStep(5); } }
                   className={` w-full sm:w-[20%] text-center cursor-pointer border rounded-lg p-4 
                     ${form.city_type === 'mumbai' ? 'border-blue-500 bg-blue-50' : 'border-gray-300'}
                   `}
@@ -452,7 +453,7 @@ const updateGoalByName = (name, field, value) => {
 
                
                 <div
-                  onClick={() => update('city_type', 'Metro')}
+                  onClick={() => {update('city_type', 'Metro'); setStep(5); } }
                   className={` w-full sm:w-[20%] text-center cursor-pointer border rounded-lg p-4 
                     ${form.city_type === 'delhi' ? 'border-blue-500 bg-blue-50' : 'border-gray-300'}
                   `}
@@ -463,7 +464,7 @@ const updateGoalByName = (name, field, value) => {
 
                 
                 <div
-                  onClick={() => update('city_type', 'Metro')}
+                  onClick={() => {update('city_type', 'Metro'); setStep(5); } }
                   className={`w-full sm:w-[20%] text-center cursor-pointer border rounded-lg p-4 
                     ${form.city_type === 'chennai' ? 'border-blue-500 bg-blue-50' : 'border-gray-300'}
                   `}
@@ -474,7 +475,7 @@ const updateGoalByName = (name, field, value) => {
 
                   
                 <div
-                  onClick={() => update('city_type', 'Metro')}
+                  onClick={() => {update('city_type', 'Metro'); setStep(5); } }
                   className={` w-full sm:w-[20%] text-center cursor-pointer border rounded-lg p-4 
                     ${form.city_type === 'kolkata' ? 'border-blue-500 bg-blue-50' : 'border-gray-300'}
                   `}
@@ -485,7 +486,7 @@ const updateGoalByName = (name, field, value) => {
 
   
                 <div
-                  onClick={() => update('city_type', 'Metro')}
+                  onClick={() => {update('city_type', 'Metro'); setStep(5); } }
                   className={` w-full sm:w-[20%] text-center cursor-pointer border rounded-lg p-4 
                     ${form.city_type === 'bangalore' ? 'border-blue-500 bg-blue-50' : 'border-gray-300'}
                   `}
@@ -495,7 +496,7 @@ const updateGoalByName = (name, field, value) => {
                 </div>
   
                 <div
-                  onClick={() => update('city_type', 'Metro')}
+                  onClick={() => {update('city_type', 'Metro'); setStep(5); } }
                   className={`w-full sm:w-[20%] text-center cursor-pointer border rounded-lg p-4 
                     ${form.city_type === 'hyderabad' ? 'border-blue-500 bg-blue-50' : 'border-gray-300'}
                   `}
@@ -505,7 +506,7 @@ const updateGoalByName = (name, field, value) => {
                 </div>
   
                 <div
-                  onClick={() => update('city_type', 'Metro')}
+                  onClick={() => {update('city_type', 'Metro'); setStep(5); } }
                   className={`w-full sm:w-[20%] text-center cursor-pointer border rounded-lg p-4 
                     ${form.city_type === 'pune' ? 'border-blue-500 bg-blue-50' : 'border-gray-300'}
                   `}
@@ -514,7 +515,7 @@ const updateGoalByName = (name, field, value) => {
                  
                 </div>
                 <div
-                  onClick={() => update('city_type', 'Metro')}
+                  onClick={() => {update('city_type', 'Metro'); setStep(5); } }
                   className={`w-full sm:w-[20%] text-center cursor-pointer border rounded-lg p-4 
                     ${form.city_type === 'ahmedabad' ? 'border-blue-500 bg-blue-50' : 'border-gray-300'}
                   `}
@@ -555,7 +556,7 @@ const updateGoalByName = (name, field, value) => {
 
               <div className="mt-6 flex justify-between gap-3">
                 <button className="px-4 py-2 bg-gray-200 rounded" onClick={() => setStep(3)}>Back</button>
-                <button className="px-4 py-2 bg-green-600 text-white rounded" onClick={() => { if (form.city_type) setStep(5); else alert('Please select city type'); }}>Next</button>
+                {/* <button className="px-4 py-2 bg-green-600 text-white rounded" onClick={() => { if (form.city_type) setStep(5); else alert('Please select city type'); }}>Next</button> */}
               </div>
             </div>
           )}
@@ -571,19 +572,49 @@ const updateGoalByName = (name, field, value) => {
             </div>
           )}
 
-          {step === 6 && (
-            <div>
-              <h2 className="text-xl font-medium mb-6">{questions[5].title}</h2>
-              <label className="flex items-center gap-3 p-4 border rounded cursor-pointer">
-                <input type="checkbox" checked={form.has_spouse} onChange={e => update('has_spouse', e.target.checked)} className="w-5 h-5" />
-                <span className="text-lg">Yes, I have a spouse</span>
-              </label>
-              <div className="mt-6 flex justify-between gap-3">
-                <button className="px-4 py-2 bg-gray-200 rounded" onClick={() => setStep(5)}>Back</button>
-                <button className="px-4 py-2 bg-green-600 text-white rounded" onClick={() => setStep(form.has_spouse ? 7 : 9)}>Next</button>
+        {step === 6 && (
+          <div>
+            <h2 className="text-xl font-medium mb-6">{questions[5].title}</h2>
+
+            <div className="mt-4 flex justify-between gap-4">
+
+              {/* NO SPOUSE */}
+              <div
+                onClick={() => { update('has_spouse', false); setStep(9); }}
+                className={`text-center cursor-pointer border rounded-lg p-4 w-full
+                  ${form.has_spouse === false ? 'border-blue-500 bg-blue-50' : 'border-gray-300'}
+                `}
+              >
+                <img src="/images/cloud-data.png" className="mx-auto w-10 h-10" />
+                <span className="mt-2 block font-medium">Nopes</span>
               </div>
+
+              {/* YES SPOUSE */}
+              <div
+                onClick={() => { update('has_spouse', true); setStep(7); }}
+                className={`text-center cursor-pointer border rounded-lg p-4 w-full
+                  ${form.has_spouse ? 'border-blue-500 bg-blue-50' : 'border-gray-300'}
+                `}
+              >
+                <img src="/images/wedding-couple.png" className="mx-auto w-10 h-10" />
+                <span className="mt-2 block font-medium">OF Course</span>
+              </div>
+
             </div>
-          )}
+
+            <div className="mt-6 flex justify-between gap-3">
+              <button className="px-4 py-2 bg-gray-200 rounded" onClick={() => setStep(5)}>Back</button>
+              <button
+                className="px-4 py-2 bg-green-600 text-white rounded"
+                onClick={() => setStep(form.has_spouse ? 7 : 9)}
+              >
+                Next
+              </button>
+            </div>
+          </div>
+        )}
+
+
 
           {step === 7 && (
             <div>
@@ -680,7 +711,7 @@ const updateGoalByName = (name, field, value) => {
                     ${form.smoker_type === 'smoker' ? 'border-blue-500 bg-blue-50' : 'border-gray-300'}
                   `}
                 >
-                  <img src="/images/female_1compressed.jpg" className=" mx-auto" />
+                  <img src="/images/Yes.png" className=" mx-auto" />
                   <span className="mt-2 block font-medium">Smoker</span>
                 </div>
 
@@ -691,7 +722,7 @@ const updateGoalByName = (name, field, value) => {
                     ${form.smoker_type === 'non-smoker' ? 'border-blue-500 bg-blue-50' : 'border-gray-300'}
                   `}
                 >
-                  <img src="/images/male_compressed1.jpg" className=" mx-auto" />
+                  <img src="/images/No.png" className=" mx-auto" />
                   <span className="mt-2 block font-medium">Non -  smoker</span>
                 </div>
 
